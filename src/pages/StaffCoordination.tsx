@@ -1,10 +1,9 @@
-
 import React from 'react';
 import { Users, Clock, Calendar, CheckCircle, AlertTriangle, User } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarContent, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 const StaffCoordination = () => {
   const staff = [
