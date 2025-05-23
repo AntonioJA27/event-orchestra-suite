@@ -1,43 +1,43 @@
 
 # BanquetPro - Plataforma de Gestión de Eventos
 
-## 🎯 Descripción del Proyecto
+## Descripción del Proyecto
 
 BanquetPro es una solución integral para la digitalización y optimización de operaciones de empresas de banquetes y eventos. La plataforma aborda los principales desafíos del sector: gestión de eventos, experiencia del cliente, coordinación logística, control de inventario y análisis de rentabilidad.
 
-## 🚀 Características Principales
+## Características Principales
 
-### 📅 Gestión de Eventos y Agenda
+### Gestión de Eventos y Agenda
 - Visualización y coordinación de múltiples eventos
 - Calendario en tiempo real con disponibilidad de recursos
 - Prevención automática de solapamiento de recursos
 - Asignación inteligente de venues, personal y equipo
 
-### 👥 Experiencia del Cliente
+### Experiencia del Cliente
 - Portal personalizado para clientes
 - Personalización de eventos (menú, decoración, música)
 - Cotización dinámica y comparativa de paquetes
 - Seguimiento en tiempo real del progreso del evento
 
-### 🧑‍💼 Coordinación Logística y Personal
+### Coordinación Logística y Personal
 - Sistema de asignación automática de personal
 - Gestión basada en disponibilidad y experiencia
 - Generación automática de itinerarios
 - Alertas automáticas para equipos
 
-### 📦 Gestión de Inventario
+### Gestión de Inventario
 - Control de inventario en tiempo real
 - Alertas automáticas para stock crítico
 - Gestión y evaluación de proveedores
 - Historial de entregas y calidad
 
-### 📊 Dashboard Administrativo
+### Dashboard Administrativo
 - Análisis de rentabilidad por evento
 - Métricas de satisfacción del cliente
 - Monitoreo de consumo de recursos
 - Evaluación de desempeño del personal
 
-## 🛠️ Stack Tecnológico
+## Stack Tecnológico
 
 ### Frontend
 - **React 18** con TypeScript
@@ -59,7 +59,7 @@ BanquetPro es una solución integral para la digitalización y optimización de 
 - **Nginx** como reverse proxy
 - Configuración para producción lista
 
-## 🏃‍♂️ Inicio Rápido
+## Inicio Rápido
 
 ### Prerrequisitos
 - Node.js 18+
@@ -100,7 +100,7 @@ docker-compose up -d
 - Backend API: http://localhost:8000
 - Documentación API: http://localhost:8000/docs
 
-## 📁 Estructura del Proyecto
+## Estructura del Proyecto
 
 ```
 banquet-pro/
@@ -124,9 +124,9 @@ banquet-pro/
 └── Dockerfile            # Imagen Docker frontend
 ```
 
-## 🎨 Funcionalidades Implementadas
+## Funcionalidades Implementadas
 
-### ✅ Frontend Completo
+### Frontend Completo
 - [x] Dashboard administrativo con métricas clave
 - [x] Gestión de eventos con calendario
 - [x] Portal del cliente con personalización
@@ -165,7 +165,7 @@ JWT_SECRET=your-secret-key-here
 API_PREFIX=/api/v1
 ```
 
-## 📈 Próximos Pasos
+## Próximos Pasos
 
 1. **Implementar endpoints del backend**
 2. **Conectar frontend con API**
@@ -175,7 +175,7 @@ API_PREFIX=/api/v1
 6. **Integración con sistemas de pago**
 7. **App móvil para coordinadores**
 
-## 🤝 Contribución
+## Contribución
 
 1. Fork el proyecto
 2. Crear branch para feature (`git checkout -b feature/AmazingFeature`)
@@ -183,11 +183,11 @@ API_PREFIX=/api/v1
 4. Push al branch (`git push origin feature/AmazingFeature`)
 5. Abrir Pull Request
 
-## 📄 Licencia
+## Licencia
 
 Este proyecto está bajo la Licencia MIT. Ver `LICENSE` para más detalles.
 
-## 🆘 Soporte
+## Soporte
 
 Para soporte y preguntas:
 - Crear un issue en GitHub
