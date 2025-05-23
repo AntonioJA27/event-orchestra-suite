@@ -13,6 +13,8 @@ services:
     restart: unless-stopped
     networks:
       - banquet-network
+    depends_on:
+      - banquet-backend
 
   # Backend API (FastAPI)
   banquet-backend:
@@ -26,8 +28,10 @@ services:
       - JWT_SECRET=your-secret-key-here
       - API_PREFIX=/api/v1
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
     restart: unless-stopped
     networks:
       - banquet-network
@@ -48,6 +52,12 @@ services:
     restart: unless-stopped
     networks:
       - banquet-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U banquet_user -d banquet_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   # Redis Cache
   redis:
@@ -61,6 +71,12 @@ services:
     restart: unless-stopped
     networks:
       - banquet-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
 volumes:
   postgres_data:
