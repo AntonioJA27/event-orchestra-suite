@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Calendar, Package, Settings, Star, MessageCircle, CreditCard, CheckCircle, Clock, Mail, Phone } from 'lucide-react';
+import { User, Calendar, Package, Settings, Star, MessageCircle, CreditCard, CheckCircle, Clock, Mail, Phone, Users } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -18,223 +18,205 @@ import {
   DialogTrigger,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { useEvents, Event } from '@/hooks/useEvents';
-import { useApi } from '@/hooks/useApi';
-import { LoadingSpinner } from '@/components/common/LoadingSpinner';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
-interface ClientEvent extends Event {
-  progress: number;
-  paid_amount: number;
-  remaining_amount: number;
-  coordinator: {
-    name: string;
-    email: string;
-    phone: string;
-  };
-}
-
-interface Package {
-  id: string;
-  name: string;
-  price: number;
-  guests: string;
-  includes: string[];
-  popular?: boolean;
-}
-
-interface CustomizationOption {
-  id: string;
-  category: string;
-  name: string;
-  description?: string;
-  price?: number;
-  selected?: boolean;
-}
-
+// Mock de eventos y datos (simplificado para el ejemplo)
 const ClientPortal = () => {
-  const { events, loading } = useEvents();
-  const [clientEvents, setClientEvents] = useState<ClientEvent[]>([]);
-  const [selectedEvent, setSelectedEvent] = useState<ClientEvent | null>(null);
-  const [isMessageDialogOpen, setIsMessageDialogOpen] = useState(false);
-  const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
-  const [customizations, setCustomizations] = useState<CustomizationOption[]>([]);
-  const { execute: sendMessage, loading: sendingMessage } = useApi();
-  const { execute: processPayment, loading: processingPayment } = useApi();
+  const [isContactDialogOpen, setIsContactDialogOpen] = useState(false);
+  const [sendingEmail, setSendingEmail] = useState(false);
+  const [emailData, setEmailData] = useState({
+    email: '',
+    subject: '',
+    reason: ''
+  });
+  const [errors, setErrors] = useState({
+    email: '',
+    subject: '',
+    reason: ''
+  });
+  const [emailjsLoaded, setEmailjsLoaded] = useState(false);
 
-  // Mock data - In real app, this would come from API based on authenticated client
+  // Cargar EmailJS dinámicamente
+  useEffect(() => {
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js';
+    script.onload = () => {
+      window.emailjs.init('kuF4vcRWL6sC8Mh1j'); // Public Key
+      setEmailjsLoaded(true);
+    };
+    document.head.appendChild(script);
+    
+    return () => {
+      document.head.removeChild(script);
+    };
+  }, []);
+
   const currentClient = {
-    id: 1,
     name: 'García-López',
     email: 'garcia.lopez@email.com',
     phone: '+52 667 123 4567',
-    verified: true,
   };
 
-  const packages: Package[] = [
-    {
-      id: 'basic',
-      name: 'Paquete Básico',
-      price: 8500,
-      guests: '50-100',
-      includes: ['Menú básico', 'Decoración simple', 'Servicio 6 horas', 'DJ básico']
-    },
-    {
-      id: 'premium',
-      name: 'Paquete Premium',
-      price: 15000,
-      guests: '100-200',
-      includes: ['Menú gourmet', 'Decoración elegante', 'Servicio completo', 'Orquesta', 'Fotografía'],
-      popular: true
-    },
-    {
-      id: 'luxury',
-      name: 'Paquete Luxury',
-      price: 25000,
-      guests: '200-300',
-      includes: ['Menú de autor', 'Decoración premium', 'Servicio VIP', 'Entretenimiento completo', 'Video profesional']
+  // Función para validar email
+  const validateEmail = (email) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  // Función para validar formulario
+  const validateForm = () => {
+    const newErrors = { email: '', subject: '', reason: '' };
+    let isValid = true;
+
+    if (!emailData.email.trim()) {
+      newErrors.email = 'El correo electrónico es requerido';
+      isValid = false;
+    } else if (!validateEmail(emailData.email)) {
+      newErrors.email = 'Ingrese un correo electrónico válido';
+      isValid = false;
     }
-  ];
 
-  useEffect(() => {
-    // Filter events for current client and add additional data
-    const clientEventsData = events
-      .filter(event => event.client_id === currentClient.id)
-      .map(event => ({
-        ...event,
-        progress: Math.floor(Math.random() * 40) + 60, // Mock progress 60-100%
-        paid_amount: Math.floor(event.budget * 0.5), // Mock 50% paid
-        remaining_amount: Math.floor(event.budget * 0.5), // Mock 50% remaining
-        coordinator: {
-          name: 'Ana Rodríguez',
-          email: 'ana.rodriguez@banquetpro.com',
-          phone: '+52 667 234 5678',
-        }
-      }));
-    
-    setClientEvents(clientEventsData);
-    if (clientEventsData.length > 0 && !selectedEvent) {
-      setSelectedEvent(clientEventsData[0]);
+    if (!emailData.subject.trim()) {
+      newErrors.subject = 'El asunto es requerido';
+      isValid = false;
     }
-  }, [events]);
 
-  useEffect(() => {
-    // Load customization options
-    const mockCustomizations: CustomizationOption[] = [
-      { id: '1', category: 'Entradas', name: 'Canapés variados', price: 150 },
-      { id: '2', category: 'Entradas', name: 'Tabla de quesos', price: 200 },
-      { id: '3', category: 'Entradas', name: 'Ceviche', price: 180 },
-      { id: '4', category: 'Plato principal', name: 'Salmón a la parrilla', price: 350 },
-      { id: '5', category: 'Plato principal', name: 'Lomo en salsa', price: 400 },
-      { id: '6', category: 'Plato principal', name: 'Pollo relleno', price: 280 },
-      { id: '7', category: 'Postres', name: 'Pastel de bodas', price: 500 },
-      { id: '8', category: 'Postres', name: 'Mini postres', price: 200 },
-      { id: '9', category: 'Bebidas', name: 'Barra libre premium', price: 800 },
-      { id: '10', category: 'Decoración', name: 'Arreglos florales', price: 600 },
-    ];
-    setCustomizations(mockCustomizations);
-  }, []);
+    if (!emailData.reason.trim()) {
+      newErrors.reason = 'La descripción es requerida';
+      isValid = false;
+    } else if (emailData.reason.trim().length < 10) {
+      newErrors.reason = 'La descripción debe tener al menos 10 caracteres';
+      isValid = false;
+    }
 
-  const handleSendMessage = async (data: { subject: string; message: string }) => {
+    setErrors(newErrors);
+    return isValid;
+  };
+
+  // Función para enviar correo real usando EmailJS
+  const sendAutomaticEmail = async () => {
+    if (!validateForm()) return;
+    if (!emailjsLoaded) {
+      alert('Sistema de correos cargando... Intente nuevamente en unos segundos');
+      return;
+    }
+
+    setSendingEmail(true);
+
     try {
-      await sendMessage(
-        async () => {
-          // Mock API call
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          return { success: true };
-        },
-        {
-          successMessage: 'Mensaje enviado exitosamente',
-          showSuccessToast: true,
-        }
+      // Generar ID del ticket único
+      const ticketId = 'BQ' + Math.random().toString(36).substr(2, 6).toUpperCase();
+
+      // Preparar parámetros para EmailJS
+      const templateParams = {
+        client_name: emailData.email.split('@')[0], // Usar la parte antes del @ como nombre
+        ticket_id: ticketId,
+        subject: emailData.subject,
+        reason: emailData.reason,
+        to_email: emailData.email, // Email del destinatario
+        from_name: 'BanquetPro Support',
+        reply_to: 'banquetpro5@gmail.com'
+      };
+
+      console.log('Enviando con parámetros:', templateParams);
+
+      // Toast inicial
+      const toast1 = () => {
+        const toastEl = document.createElement('div');
+        toastEl.className = 'fixed top-4 right-4 bg-blue-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
+        toastEl.textContent = `Generando ticket #${ticketId}...`;
+        document.body.appendChild(toastEl);
+        setTimeout(() => document.body.removeChild(toastEl), 2000);
+      };
+      toast1();
+
+      // Enviar correo real usando EmailJS
+      const result = await window.emailjs.send(
+        'service_u86obhn', // Service ID
+        'template_q8o372k', // Template ID correcto
+        templateParams
       );
-      setIsMessageDialogOpen(false);
+
+      console.log('Email enviado exitosamente:', result);
+
+      // Toast de éxito del envío
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      const toast2 = () => {
+        const toastEl = document.createElement('div');
+        toastEl.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
+        toastEl.textContent = `✅ Correo enviado exitosamente desde banquetpro5@gmail.com`;
+        document.body.appendChild(toastEl);
+        setTimeout(() => document.body.removeChild(toastEl), 4000);
+      };
+      toast2();
+
+      // Detalles del correo enviado
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      const toast3 = () => {
+        const toastEl = document.createElement('div');
+        toastEl.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
+        toastEl.innerHTML = `
+          <div class="text-sm">
+            <strong>Correo enviado a:</strong> ${emailData.email}<br/>
+            <strong>Ticket ID:</strong> #${ticketId}<br/>
+            <strong>Estado:</strong> Enviado ✅
+          </div>
+        `;
+        document.body.appendChild(toastEl);
+        setTimeout(() => document.body.removeChild(toastEl), 5000);
+      };
+      toast3();
+
+      // Toast de éxito final
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      const toast4 = () => {
+        const toastEl = document.createElement('div');
+        toastEl.className = 'fixed top-4 right-4 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg z-50';
+        toastEl.textContent = `🎉 Ticket #${ticketId} creado exitosamente - Revise su bandeja de entrada`;
+        document.body.appendChild(toastEl);
+        setTimeout(() => document.body.removeChild(toastEl), 6000);
+      };
+      toast4();
+
+      // Cerrar modal y resetear form
+      setIsContactDialogOpen(false);
+      setEmailData({ email: '', subject: '', reason: '' });
+      setErrors({ email: '', subject: '', reason: '' });
+
     } catch (error) {
-      console.error('Error sending message:', error);
+      console.error('Error al enviar correo:', error);
+      
+      const toastError = () => {
+        const toastEl = document.createElement('div');
+        toastEl.className = 'fixed top-4 right-4 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
+        toastEl.innerHTML = `
+          <div class="text-sm">
+            <strong>❌ Error al enviar correo</strong><br/>
+            ${error.text || 'Por favor intente nuevamente'}
+          </div>
+        `;
+        document.body.appendChild(toastEl);
+        setTimeout(() => document.body.removeChild(toastEl), 5000);
+      };
+      toastError();
+    } finally {
+      setSendingEmail(false);
     }
   };
 
-  const handlePayment = async (amount: number) => {
-    try {
-      await processPayment(
-        async () => {
-          // Mock payment processing
-          await new Promise(resolve => setTimeout(resolve, 2000));
-          return { success: true, transaction_id: `TXN${Date.now()}` };
-        },
-        {
-          successMessage: `Pago de $${amount.toLocaleString()} procesado exitosamente`,
-          showSuccessToast: true,
-        }
-      );
-      setIsPaymentDialogOpen(false);
-      // Update event data
-      if (selectedEvent) {
-        const updatedEvent = {
-          ...selectedEvent,
-          paid_amount: selectedEvent.paid_amount + amount,
-          remaining_amount: selectedEvent.remaining_amount - amount,
-        };
-        setSelectedEvent(updatedEvent);
-        setClientEvents(prev => prev.map(e => e.id === selectedEvent.id ? updatedEvent : e));
-      }
-    } catch (error) {
-      console.error('Error processing payment:', error);
+  const handleInputChange = (field, value) => {
+    setEmailData(prev => ({ ...prev, [field]: value }));
+    // Limpiar error cuando el usuario empiece a escribir
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: '' }));
     }
   };
-
-  const handleCustomizationChange = (optionId: string, selected: boolean) => {
-    setCustomizations(prev => prev.map(option => 
-      option.id === optionId ? { ...option, selected } : option
-    ));
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'confirmed': return 'default';
-      case 'in_preparation': return 'secondary';
-      case 'planning': return 'outline';
-      case 'completed': return 'default';
-      default: return 'outline';
-    }
-  };
-
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case 'confirmed': return 'Confirmado';
-      case 'in_preparation': return 'En Preparación';
-      case 'planning': return 'Planificación';
-      case 'completed': return 'Completado';
-      default: return status;
-    }
-  };
-
-  const selectedCustomizations = customizations.filter(option => option.selected);
-  const customizationTotal = selectedCustomizations.reduce((sum, option) => sum + (option.price || 0), 0);
-
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center min-h-[400px]">
-        <LoadingSpinner size="lg" />
-      </div>
-    );
-  }
-
-  if (clientEvents.length === 0) {
-    return (
-      <div className="max-w-7xl mx-auto p-6">
-        <div className="text-center py-12">
-          <Calendar className="w-16 h-16 mx-auto mb-4 text-slate-300" />
-          <h2 className="text-2xl font-bold text-slate-900 mb-2">No tienes eventos programados</h2>
-          <p className="text-slate-600 mb-6">Contacta con nuestro equipo para programar tu próximo evento.</p>
-          <Button className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600">
-            Contactar Equipo
-          </Button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-8">
@@ -249,409 +231,193 @@ const ClientPortal = () => {
             <CheckCircle className="w-3 h-3 mr-1" />
             Cliente Verificado
           </Badge>
+          
+          {/* Botón principal de contacto */}
+          <Dialog open={isContactDialogOpen} onOpenChange={setIsContactDialogOpen}>
+            <DialogTrigger asChild>
+              <Button 
+                className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
+                disabled={!emailjsLoaded}
+              >
+                <Mail className="w-4 h-4 mr-2" />
+                {emailjsLoaded ? 'Contactar Soporte' : 'Cargando...'}
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[600px]">
+              <DialogHeader>
+                <DialogTitle className="flex items-center space-x-2">
+                  <Mail className="w-5 h-5 text-amber-600" />
+                  <span>Solicitar Soporte BanquetPro</span>
+                </DialogTitle>
+                <DialogDescription>
+                  Complete el formulario para generar su ticket de soporte. Recibirá un correo desde banquetpro5@gmail.com con todos los detalles.
+                </DialogDescription>
+              </DialogHeader>
+              
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="email">Correo Electrónico del Cliente</Label>
+                  <Input 
+                    id="email"
+                    placeholder="cliente@ejemplo.com" 
+                    type="email"
+                    value={emailData.email}
+                    onChange={(e) => handleInputChange('email', e.target.value)}
+                    className={errors.email ? 'border-red-500' : ''}
+                  />
+                  {errors.email && <p className="text-sm text-red-500 mt-1">{errors.email}</p>}
+                  <p className="text-sm text-slate-500 mt-1">
+                    A este correo le llegará un email desde banquetpro5@gmail.com con los detalles del ticket
+                  </p>
+                </div>
+
+                <div>
+                  <Label htmlFor="subject">Asunto del Ticket</Label>
+                  <Input 
+                    id="subject"
+                    placeholder="Ej: Problema con pagos, Modificación de evento, etc." 
+                    value={emailData.subject}
+                    onChange={(e) => handleInputChange('subject', e.target.value)}
+                    className={errors.subject ? 'border-red-500' : ''}
+                  />
+                  {errors.subject && <p className="text-sm text-red-500 mt-1">{errors.subject}</p>}
+                </div>
+
+                <div>
+                  <Label htmlFor="reason">Descripción del Problema o Consulta</Label>
+                  <Textarea
+                    id="reason"
+                    placeholder="Describe detalladamente tu problema, consulta o solicitud..."
+                    className={`resize-none ${errors.reason ? 'border-red-500' : ''}`}
+                    rows={4}
+                    value={emailData.reason}
+                    onChange={(e) => handleInputChange('reason', e.target.value)}
+                  />
+                  {errors.reason && <p className="text-sm text-red-500 mt-1">{errors.reason}</p>}
+                </div>
+
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <h4 className="font-semibold text-blue-800 mb-2">¿Cómo funciona?</h4>
+                  <ol className="text-sm text-blue-700 space-y-1">
+                    <li>1. Se genera automáticamente su ticket de soporte</li>
+                    <li>2. Recibe un correo desde <strong>banquetpro5@gmail.com</strong> con los detalles</li>
+                    <li>3. El correo incluye: ID del ticket, asunto y estado</li>
+                    <li>4. Nuestro equipo responderá desde la misma dirección</li>
+                  </ol>
+                  <div className="mt-3 p-2 bg-yellow-100 border border-yellow-300 rounded text-xs text-yellow-800">
+                    <strong>📧 Importante:</strong> Revise su bandeja de spam/promociones si no ve el correo
+                  </div>
+                </div>
+
+                <DialogFooter>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => setIsContactDialogOpen(false)}
+                    disabled={sendingEmail}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button 
+                    onClick={sendAutomaticEmail}
+                    disabled={sendingEmail}
+                  >
+                    {sendingEmail ? (
+                      <>
+                        <div className="w-4 h-4 mr-2 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                        Generando Ticket...
+                      </>
+                    ) : (
+                      <>
+                        <Mail className="w-4 h-4 mr-2" />
+                        Generar Ticket de Soporte
+                      </>
+                    )}
+                  </Button>
+                </DialogFooter>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
-      {/* Event Selector */}
-      {clientEvents.length > 1 && (
-        <Card>
+      {/* Contenido principal del portal */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Panel principal */}
+        <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle>Mis Eventos</CardTitle>
+            <CardTitle className="flex items-center space-x-2">
+              <Calendar className="w-5 h-5 text-amber-600" />
+              <span>Centro de Soporte</span>
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {clientEvents.map((event) => (
-                <div
-                  key={event.id}
-                  className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                    selectedEvent?.id === event.id
-                      ? 'border-amber-500 bg-amber-50'
-                      : 'border-slate-200 hover:border-slate-300'
-                  }`}
-                  onClick={() => setSelectedEvent(event)}
-                >
-                  <h3 className="font-semibold text-slate-900">{event.name}</h3>
-                  <p className="text-sm text-slate-600">{format(new Date(event.date), 'dd MMM yyyy', { locale: es })}</p>
-                  <Badge variant={getStatusColor(event.status)} className="mt-2">
-                    {getStatusLabel(event.status)}
-                  </Badge>
+            <div className="text-center py-8">
+              <Mail className="w-16 h-16 mx-auto mb-4 text-amber-500" />
+              <h3 className="text-xl font-semibold text-slate-900 mb-2">
+                Sistema de Tickets Automatizado
+              </h3>
+              <p className="text-slate-600 mb-6">
+                Sistema completamente automatizado - Reciba su ticket al instante desde banquetpro5@gmail.com
+              </p>
+              
+              <div className="bg-slate-50 rounded-lg p-6 text-left max-w-md mx-auto">
+                <h4 className="font-semibold text-slate-900 mb-3">Proceso de Soporte:</h4>
+                <div className="space-y-2 text-sm text-slate-700">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-6 h-6 bg-amber-500 text-white rounded-full flex items-center justify-center text-xs font-bold">1</div>
+                    <span>Generación instantánea del ticket</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <div className="w-6 h-6 bg-amber-500 text-white rounded-full flex items-center justify-center text-xs font-bold">2</div>
+                    <span>Envío automático desde banquetpro5@gmail.com</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <div className="w-6 h-6 bg-amber-500 text-white rounded-full flex items-center justify-center text-xs font-bold">3</div>
+                    <span>Recibe detalles completos del ticket</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <div className="w-6 h-6 bg-green-500 text-white rounded-full flex items-center justify-center text-xs font-bold">✓</div>
+                    <span>Todo listo para seguimiento</span>
+                  </div>
                 </div>
-              ))}
+              </div>
             </div>
           </CardContent>
         </Card>
-      )}
 
-      {selectedEvent && (
-        <Tabs defaultValue="event-details" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="event-details">Mi Evento</TabsTrigger>
-            <TabsTrigger value="customization">Personalización</TabsTrigger>
-            <TabsTrigger value="packages">Paquetes</TabsTrigger>
-            <TabsTrigger value="payments">Pagos</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="event-details" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              {/* Event Overview */}
-              <Card className="lg:col-span-2">
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <Calendar className="w-5 h-5 text-amber-600" />
-                    <span>Resumen del Evento</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <Label className="text-sm font-medium text-slate-600">Nombre del Evento</Label>
-                        <p className="text-lg font-semibold text-slate-900">{selectedEvent.name}</p>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-medium text-slate-600">Fecha</Label>
-                        <p className="text-lg font-semibold text-slate-900">
-                          {format(new Date(selectedEvent.date), 'dd MMMM yyyy', { locale: es })}
-                        </p>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-medium text-slate-600">Lugar</Label>
-                        <p className="text-lg font-semibold text-slate-900">{selectedEvent.venue}</p>
-                      </div>
-                      <div>
-                        <Label className="text-sm font-medium text-slate-600">Invitados</Label>
-                        <p className="text-lg font-semibold text-slate-900">{selectedEvent.guests_count} personas</p>
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <Label className="text-sm font-medium text-slate-600">Progreso del evento</Label>
-                        <span className="text-sm font-medium text-amber-600">{selectedEvent.progress}%</span>
-                      </div>
-                      <Progress value={selectedEvent.progress} className="h-3" />
-                    </div>
-
-                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                      <h4 className="font-semibold text-amber-800 mb-2">Próximos Pasos</h4>
-                      <ul className="space-y-1 text-sm text-amber-700">
-                        <li className="flex items-center space-x-2">
-                          <Clock className="w-4 h-4" />
-                          <span>Confirmar selección de menú - Pendiente</span>
-                        </li>
-                        <li className="flex items-center space-x-2">
-                          <Calendar className="w-4 h-4" />
-                          <span>Reunión final de coordinación - 25 de Mayo</span>
-                        </li>
-                        <li className="flex items-center space-x-2">
-                          <CreditCard className="w-4 h-4" />
-                          <span>Pago final - antes del 26 de Mayo</span>
-                        </li>
-                      </ul>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Quick Actions */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <Settings className="w-5 h-5 text-amber-600" />
-                    <span>Acciones Rápidas</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <Dialog open={isMessageDialogOpen} onOpenChange={setIsMessageDialogOpen}>
-                      <DialogTrigger asChild>
-                        <Button className="w-full justify-start" variant="outline">
-                          <MessageCircle className="w-4 h-4 mr-2" />
-                          Contactar Coordinador
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>Contactar Coordinador</DialogTitle>
-                          <DialogDescription>
-                            Envía un mensaje a tu coordinador de eventos.
-                          </DialogDescription>
-                        </DialogHeader>
-                        <form onSubmit={(e) => {
-                          e.preventDefault();
-                          const formData = new FormData(e.currentTarget);
-                          handleSendMessage({
-                            subject: formData.get('subject') as string,
-                            message: formData.get('message') as string,
-                          });
-                        }}>
-                          <div className="space-y-4 py-4">
-                            <div>
-                              <Label htmlFor="subject">Asunto</Label>
-                              <Input id="subject" name="subject" placeholder="Asunto del mensaje" required />
-                            </div>
-                            <div>
-                              <Label htmlFor="message">Mensaje</Label>
-                              <Textarea id="message" name="message" placeholder="Escribe tu mensaje aquí..." required />
-                            </div>
-                          </div>
-                          <DialogFooter>
-                            <Button type="button" variant="outline" onClick={() => setIsMessageDialogOpen(false)}>
-                              Cancelar
-                            </Button>
-                            <Button type="submit" disabled={sendingMessage}>
-                              {sendingMessage ? <LoadingSpinner size="sm" className="mr-2" /> : null}
-                              Enviar Mensaje
-                            </Button>
-                          </DialogFooter>
-                        </form>
-                      </DialogContent>
-                    </Dialog>
-
-                    <Button className="w-full justify-start" variant="outline">
-                      <Calendar className="w-4 h-4 mr-2" />
-                      Agendar Reunión
-                    </Button>
-                    <Button className="w-full justify-start" variant="outline">
-                      <Package className="w-4 h-4 mr-2" />
-                      Modificar Servicios
-                    </Button>
-                    
-                    <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
-                      <DialogTrigger asChild>
-                        <Button className="w-full justify-start" variant="outline">
-                          <CreditCard className="w-4 h-4 mr-2" />
-                          Realizar Pago
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>Procesar Pago</DialogTitle>
-                          <DialogDescription>
-                            Realizar pago pendiente para {selectedEvent.name}
-                          </DialogDescription>
-                        </DialogHeader>
-                        <div className="space-y-4 py-4">
-                          <div className="bg-slate-50 p-4 rounded-lg">
-                            <div className="flex justify-between mb-2">
-                              <span>Monto pendiente:</span>
-                              <span className="font-bold">${selectedEvent.remaining_amount.toLocaleString()}</span>
-                            </div>
-                            <div className="flex justify-between text-sm text-slate-600">
-                              <span>Total del evento:</span>
-                              <span>${selectedEvent.budget.toLocaleString()}</span>
-                            </div>
-                          </div>
-                        </div>
-                        <DialogFooter>
-                          <Button type="button" variant="outline" onClick={() => setIsPaymentDialogOpen(false)}>
-                            Cancelar
-                          </Button>
-                          <Button 
-                            onClick={() => handlePayment(selectedEvent.remaining_amount)}
-                            disabled={processingPayment}
-                          >
-                            {processingPayment ? <LoadingSpinner size="sm" className="mr-2" /> : null}
-                            Pagar ${selectedEvent.remaining_amount.toLocaleString()}
-                          </Button>
-                        </DialogFooter>
-                      </DialogContent>
-                    </Dialog>
-                  </div>
-
-                  <div className="mt-6 pt-4 border-t">
-                    <h4 className="font-medium text-slate-900 mb-3">Tu Coordinador</h4>
-                    <div className="space-y-3">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 bg-gradient-to-br from-amber-500 to-orange-500 rounded-full flex items-center justify-center">
-                          <User className="w-5 h-5 text-white" />
-                        </div>
-                        <div>
-                          <p className="font-medium text-slate-900">{selectedEvent.coordinator.name}</p>
-                          <p className="text-sm text-slate-600">Coordinadora Senior</p>
-                        </div>
-                      </div>
-                      <div className="space-y-2 text-sm text-slate-600">
-                        <div className="flex items-center space-x-2">
-                          <Mail className="w-4 h-4" />
-                          <span>{selectedEvent.coordinator.email}</span>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Phone className="w-4 h-4" />
-                          <span>{selectedEvent.coordinator.phone}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+        {/* Panel lateral */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Settings className="w-5 h-5 text-amber-600" />
+              <span>Información del Sistema</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                <h4 className="font-semibold text-green-800 mb-1">Estado del Sistema</h4>
+                <p className="text-sm text-green-700">
+                  {emailjsLoaded ? 'Operativo ✅' : 'Cargando... ⏳'}
+                </p>
+              </div>
+              
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <h4 className="font-semibold text-blue-800 mb-1">Tiempo de Respuesta</h4>
+                <p className="text-sm text-blue-700">
+                  {emailjsLoaded ? 'Instantáneo ⚡' : 'Preparando...'}
+                </p>
+              </div>
+              
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                <h4 className="font-semibold text-amber-800 mb-1">Disponibilidad</h4>
+                <p className="text-sm text-amber-700">24/7 - Sistema Automatizado</p>
+              </div>
             </div>
-          </TabsContent>
-
-          <TabsContent value="customization" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Personalización del Menú</CardTitle>
-                <div className="text-sm text-slate-600">
-                  Selecciona las opciones adicionales para tu evento
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-6">
-                  {Object.entries(
-                    customizations.reduce((acc, option) => {
-                      if (!acc[option.category]) acc[option.category] = [];
-                      acc[option.category].push(option);
-                      return acc;
-                    }, {} as Record<string, CustomizationOption[]>)
-                  ).map(([category, options]) => (
-                    <div key={category}>
-                      <h4 className="font-semibold text-slate-900 mb-3">{category}</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        {options.map((option) => (
-                          <div key={option.id} className="flex items-center space-x-3 p-3 border border-slate-200 rounded-lg hover:bg-slate-50">
-                            <Checkbox
-                              id={option.id}
-                              checked={option.selected || false}
-                              onCheckedChange={(checked) => handleCustomizationChange(option.id, checked as boolean)}
-                            />
-                            <div className="flex-1">
-                              <label
-                                htmlFor={option.id}
-                                className="text-slate-700 cursor-pointer"
-                              >
-                                {option.name}
-                              </label>
-                              {option.price && (
-                                <div className="text-sm text-slate-500">
-                                  +${option.price.toLocaleString()}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {selectedCustomizations.length > 0 && (
-                  <div className="mt-6 pt-4 border-t">
-                    <h4 className="font-semibold text-slate-900 mb-3">Resumen de Personalizaciones</h4>
-                    <div className="space-y-2">
-                      {selectedCustomizations.map((option) => (
-                        <div key={option.id} className="flex justify-between text-sm">
-                          <span>{option.name}</span>
-                          <span>${option.price?.toLocaleString()}</span>
-                        </div>
-                      ))}
-                      <div className="border-t pt-2 flex justify-between font-semibold">
-                        <span>Total adicional:</span>
-                        <span>${customizationTotal.toLocaleString()}</span>
-                      </div>
-                    </div>
-                    <Button className="w-full mt-4">
-                      Guardar Personalizaciones
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="packages" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {packages.map((pkg) => (
-                <Card key={pkg.id} className={pkg.popular ? 'ring-2 ring-amber-500 shadow-lg' : ''}>
-                  <CardHeader>
-                    <CardTitle className="text-center">
-                      {pkg.name}
-                      {pkg.popular && <Badge className="ml-2">Recomendado</Badge>}
-                    </CardTitle>
-                    <div className="text-center">
-                      <span className="text-3xl font-bold text-amber-600">${pkg.price.toLocaleString()}</span>
-                      <p className="text-sm text-slate-600 mt-1">{pkg.guests} invitados</p>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <ul className="space-y-2">
-                      {pkg.includes.map((item, itemIndex) => (
-                        <li key={itemIndex} className="flex items-center space-x-2 text-sm">
-                          <CheckCircle className="w-4 h-4 text-green-600" />
-                          <span>{item}</span>
-                        </li>
-                      ))}
-                    </ul>
-                    <Button className="w-full mt-4" variant={pkg.popular ? 'default' : 'outline'}>
-                      Seleccionar Paquete
-                    </Button>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </TabsContent>
-
-          <TabsContent value="payments" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Estado de Pagos</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
-                      <span className="text-green-800">Monto pagado</span>
-                      <span className="font-semibold text-green-800">${selectedEvent.paid_amount.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between items-center p-3 bg-yellow-50 rounded-lg">
-                      <span className="text-yellow-800">Saldo pendiente</span>
-                      <span className="font-semibold text-yellow-800">${selectedEvent.remaining_amount.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
-                      <span className="text-slate-700">Total del evento</span>
-                      <span className="font-semibold text-slate-900">${selectedEvent.budget.toLocaleString()}</span>
-                    </div>
-                  </div>
-                  {selectedEvent.remaining_amount > 0 && (
-                    <Button 
-                      className="w-full mt-4"
-                      onClick={() => setIsPaymentDialogOpen(true)}
-                    >
-                      Realizar Pago Pendiente
-                    </Button>
-                  )}
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Historial de Transacciones</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center py-2 border-b">
-                      <div>
-                        <p className="font-medium">Anticipo inicial</p>
-                        <p className="text-sm text-slate-600">15 de Abril, 2024</p>
-                      </div>
-                      <span className="font-semibold text-green-600">${selectedEvent.paid_amount.toLocaleString()}</span>
-                    </div>
-                    {selectedEvent.remaining_amount > 0 && (
-                      <div className="flex justify-between items-center py-2 text-slate-500">
-                        <div>
-                          <p className="font-medium">Pago final</p>
-                          <p className="text-sm">Pendiente</p>
-                        </div>
-                        <span className="font-semibold">${selectedEvent.remaining_amount.toLocaleString()}</span>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-        </Tabs>
-      )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };
