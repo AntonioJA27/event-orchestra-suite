@@ -1,7 +1,5 @@
 // src/lib/api.ts
-export const API_BASE_URL = process.env.NODE_ENV === 'production' 
-  ? '/api/v1' 
-  : 'http://localhost:8000/api/v1';
+export const API_BASE_URL = '/api/v1';
 
 export const API_ENDPOINTS = {
   // Events
@@ -31,11 +29,11 @@ export const API_ENDPOINTS = {
   },
   // Inventory
   inventory: {
-    list: () => `${API_BASE_URL}/inventory`,
-    create: () => `${API_BASE_URL}/inventory`,
-    get: (id: number) => `${API_BASE_URL}/inventory/${id}`,
-    update: (id: number) => `${API_BASE_URL}/inventory/${id}`,
-    restock: (id: number) => `${API_BASE_URL}/inventory/${id}/restock`,
+    list: () => `${API_BASE_URL}/inventory/`,
+    create: () => `${API_BASE_URL}/inventory/`,
+    get: (id: number) => `${API_BASE_URL}/inventory/${id}/`,
+    update: (id: number) => `${API_BASE_URL}/inventory/${id}/`,
+    restock: (id: number) => `${API_BASE_URL}/inventory/${id}/restock/`,
   },
   // Analytics
   analytics: {

@@ -60,13 +60,9 @@ export function useInventory() {
       const errorMessage = error instanceof ApiError ? error.message : 'Error fetching inventory';
       setError(errorMessage);
       
-      // If API fails, use mock data for development
-      console.warn('API call failed, using mock data:', errorMessage);
-      setInventory(getMockInventoryData());
-      
       toast({
-        title: 'Warning',
-        description: 'Using mock data - API connection failed',
+        title: 'Error',
+        description: errorMessage,
         variant: 'destructive',
       });
     } finally {
@@ -186,70 +182,6 @@ export function useInventory() {
       setLoading(false);
     }
   };
-
-  // Mock data for development/fallback
-  const getMockInventoryData = (): InventoryItem[] => [
-    {
-      id: 1,
-      name: 'Manteles Blancos',
-      category: 'Mantelería',
-      current_stock: 45,
-      minimum_stock: 20,
-      maximum_stock: 100,
-      unit_cost: 25.50,
-      location: 'Almacén Principal',
-      supplier: 'Textiles Premium',
-      created_at: new Date().toISOString(),
-    },
-    {
-      id: 2,
-      name: 'Copas de Cristal',
-      category: 'Cristalería',
-      current_stock: 8,
-      minimum_stock: 25,
-      maximum_stock: 200,
-      unit_cost: 12.00,
-      location: 'Almacén Principal',
-      supplier: 'Cristales y Más',
-      created_at: new Date().toISOString(),
-    },
-    {
-      id: 3,
-      name: 'Platos Principales',
-      category: 'Vajilla',
-      current_stock: 150,
-      minimum_stock: 100,
-      maximum_stock: 300,
-      unit_cost: 8.75,
-      location: 'Cocina',
-      supplier: 'Vajillas SA',
-      created_at: new Date().toISOString(),
-    },
-    {
-      id: 4,
-      name: 'Sillas Chiavari',
-      category: 'Mobiliario',
-      current_stock: 0,
-      minimum_stock: 50,
-      maximum_stock: 200,
-      unit_cost: 45.00,
-      location: 'Bodega Externa',
-      supplier: 'Mobiliario Eventos',
-      created_at: new Date().toISOString(),
-    },
-    {
-      id: 5,
-      name: 'Centros de Mesa',
-      category: 'Decoración',
-      current_stock: 25,
-      minimum_stock: 15,
-      maximum_stock: 80,
-      unit_cost: 35.00,
-      location: 'Almacén Secundario',
-      supplier: 'Decoraciones Elegantes',
-      created_at: new Date().toISOString(),
-    },
-  ];
 
   // Fetch inventory on mount
   useEffect(() => {
