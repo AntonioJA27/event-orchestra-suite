@@ -1,0 +1,71 @@
+
+version: '3.8'
+
+services:
+  # Frontend Application
+  banquet-frontend:
+    build: .
+    container_name: banquet-frontend
+    ports:
+      - "80:80"
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
+    networks:
+      - banquet-network
+
+  # Backend API (FastAPI)
+  banquet-backend:
+    build: ./backend
+    container_name: banquet-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://banquet_user:banquet_password@postgres:5432/banquet_db
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=your-secret-key-here
+      - API_PREFIX=/api/v1
+    depends_on:
+      - postgres
+      - redis
+    restart: unless-stopped
+    networks:
+      - banquet-network
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: banquet-postgres
+    environment:
+      - POSTGRES_DB=banquet_db
+      - POSTGRES_USER=banquet_user
+      - POSTGRES_PASSWORD=banquet_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    networks:
+      - banquet-network
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: banquet-redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    networks:
+      - banquet-network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  banquet-network:
+    driver: bridge
