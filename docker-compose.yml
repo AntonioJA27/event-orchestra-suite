@@ -24,6 +24,7 @@ services:
       - "8000:8000"
     environment:
       - DATABASE_URL=postgresql://banquet_user:banquet_password@postgres:5432/banquet_db
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - REDIS_URL=redis://redis:6379
       - JWT_SECRET=your-secret-key-here
       - API_PREFIX=/api/v1
