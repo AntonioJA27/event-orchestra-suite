@@ -78,9 +78,32 @@ services:
       retries: 5
       start_period: 10s
 
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: banquet-pgadmin
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@banquet.pro
+      - PGADMIN_DEFAULT_PASSWORD=adminpassword
+      # PGADMIN_SERVER_JSON_FILE: "/pgadmin4/servers.json" # This is how we tell pgAdmin to load the server config
+      # PGADMIN_DISABLE_POSTFIX: "true" # Optional: if you want to disable the email postfix warning
+      # SCRIPT_NAME: "/pgadmin4" # If running pgadmin behind a reverse proxy with a subpath
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+      - ./pgadmin-servers.json:/pgadmin4/servers.json:ro
+      - ./pgpass:/pgadmin4/pgpass:ro # Mount the password file
+    ports:
+      - "5050:80" # Expose PgAdmin on host port 5050, listening on container port 80
+    networks:
+      - banquet-network
+    depends_on:
+      postgres:
+        condition: service_healthy # Wait for postgres to be healthy
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   redis_data:
+  pgadmin_data: # Add this line
 
 networks:
   banquet-network:

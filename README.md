@@ -100,6 +100,18 @@ docker-compose up -d
 - Backend API: http://localhost:8000
 - Documentación API: http://localhost:8000/docs
 
+### PostgreSQL Admin (PgAdmin)
+
+This project includes PgAdmin, a web-based administration tool for PostgreSQL. You can use it to view and manage the `banquet_db` database.
+
+**Accessing PgAdmin:**
+
+*   URL: [http://localhost:5050](http://localhost:5050)
+*   Default Email: `admin@banquet.pro`
+*   Default Password: `adminpassword`
+
+Upon logging into PgAdmin, you should find the "BanquetPro DB" server pre-configured under "Servers". This connection uses the `banquet_user` and its associated password (as defined in the `docker-compose.yml` environment for the PostgreSQL service and utilized via a pgpass file for seamless authentication within PgAdmin). You can directly browse the database schema, tables, and execute SQL queries.
+
 ## 📁 Estructura del Proyecto
 
 ```

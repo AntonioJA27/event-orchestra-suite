@@ -18,6 +18,17 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  // AlertDialogTrigger, // Not needed as we trigger programmatically
+} from "@/components/ui/alert-dialog";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -94,6 +105,12 @@ const EventPlanningPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState<boolean>(false);
+  const [selectedEventDetails, setSelectedEventDetails] = useState<Event | null>(null);
+  const [isViewDetailsDialogOpen, setIsViewDetailsDialogOpen] = useState<boolean>(false);
+  const [editingEvent, setEditingEvent] = useState<Event | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState<boolean>(false);
+  const [deletingEvent, setDeletingEvent] = useState<Event | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState<boolean>(false);
   const { toast } = useToast();
 
   const API_BASE_URL = '/api/v1'; // Or http://localhost:8000/api/v1 if needed
@@ -112,6 +129,19 @@ const EventPlanningPage: React.FC = () => {
       budget: 1000,
       notes: "",
     },
+  });
+
+  const transformEventDataForForm = (event: Event): EventFormData => ({
+    name: event.name,
+    client_id: event.client_id,
+    event_type: event.event_type,
+    date: new Date(event.date), // Assumes event.date is a valid date string for constructor
+    start_time: format(new Date(event.start_time), "HH:mm"),
+    end_time: format(new Date(event.end_time), "HH:mm"),
+    venue: event.venue,
+    guests_count: event.guests_count,
+    budget: event.budget,
+    notes: event.notes || "",
   });
 
   const fetchEvents = useCallback(async () => {
@@ -212,24 +242,71 @@ const EventPlanningPage: React.FC = () => {
   return (
     <div className="container mx-auto py-10">
       <Toaster />
+      <ViewEventDialog event={selectedEventDetails} isOpen={isViewDetailsDialogOpen} onClose={() => setIsViewDetailsDialogOpen(false)} />
+      
+      {/* Delete Confirmation Dialog */}
+      {deletingEvent && (
+        <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This action cannot be undone. This will permanently delete the event
+                "{deletingEvent.name}".
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => { 
+                setIsDeleteDialogOpen(false); 
+                setDeletingEvent(null);
+              }}>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmDelete}>Delete</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
+
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Event Management</h1>
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+        {/* Combined Dialog for Create and Edit */}
+        <Dialog
+          open={isCreateDialogOpen || isEditDialogOpen} 
+          onOpenChange={(isOpen) => {
+            if (!isOpen) {
+              setIsCreateDialogOpen(false);
+              setIsEditDialogOpen(false);
+              setEditingEvent(null);
+              form.reset({ // Reset to default create values or specific edit values if needed
+                name: "", client_id: undefined, event_type: "",
+                start_time: "09:00", end_time: "17:00", venue: "",
+                guests_count: 0, budget: 1000, notes: "", date: undefined,
+              });
+            } else {
+              // If isEditDialogOpen is true, form is already populated by handleEditClick
+              // If isCreateDialogOpen is true, form is populated by the Create button's onClick
+            }
+          }}
+        >
           <DialogTrigger asChild>
             <Button onClick={() => {
-                form.reset(); // Reset form on dialog open
+                setEditingEvent(null); // Ensure not in edit mode
+                form.reset({ // Reset to default create values
+                    name: "", client_id: undefined, event_type: "",
+                    start_time: "09:00", end_time: "17:00", venue: "",
+                    guests_count: 0, budget: 1000, notes: "", date: undefined,
+                });
                 setIsCreateDialogOpen(true);
             }}>Create New Event</Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[600px]">
             <DialogHeader>
-              <DialogTitle>Create New Event</DialogTitle>
+              <DialogTitle>{editingEvent ? "Edit Event" : "Create New Event"}</DialogTitle>
               <DialogDescription>
-                Fill in the details below to create a new event.
+                {editingEvent ? "Update the details of your event." : "Fill in the details below to create a new event."}
               </DialogDescription>
             </DialogHeader>
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(handleCreateEventSubmit)} className="space-y-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
+              <form onSubmit={form.handleSubmit(editingEvent ? handleUpdateEventSubmit : handleCreateEventSubmit)} className="space-y-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
                 <FormField
                   control={form.control}
                   name="name"
@@ -415,11 +492,17 @@ const EventPlanningPage: React.FC = () => {
                   )}
                 />
                 <DialogFooter>
-                  <Button type="button" variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+                  <Button type="button" variant="outline" onClick={() => {
+                    setIsCreateDialogOpen(false);
+                    setIsEditDialogOpen(false);
+                    setEditingEvent(null);
+                  }}>
                     Cancel
                   </Button>
                   <Button type="submit" disabled={form.formState.isSubmitting}>
-                    {form.formState.isSubmitting ? "Creating..." : "Create Event"}
+                    {form.formState.isSubmitting 
+                      ? (editingEvent ? "Saving..." : "Creating...") 
+                      : (editingEvent ? "Save Changes" : "Create Event")}
                   </Button>
                 </DialogFooter>
               </form>
@@ -451,9 +534,9 @@ const EventPlanningPage: React.FC = () => {
                 <TableCell>{format(new Date(event.date), "PPP")}</TableCell>
                 <TableCell>{event.status}</TableCell>
                 <TableCell className="text-right">
-                  <Button variant="outline" size="sm" className="mr-2" disabled>View Details</Button>
-                  <Button variant="outline" size="sm" className="mr-2" disabled>Edit</Button>
-                  <Button variant="destructive" size="sm" disabled>Delete</Button>
+                  <Button variant="outline" size="sm" className="mr-2" onClick={() => handleViewDetailsClick(event.id)}>View Details</Button>
+                  <Button variant="outline" size="sm" className="mr-2" onClick={() => handleEditClick(event)}>Edit</Button>
+                  <Button variant="destructive" size="sm" onClick={() => handleDeleteClick(event)}>Delete</Button>
                 </TableCell>
               </TableRow>
             ))
@@ -467,6 +550,46 @@ const EventPlanningPage: React.FC = () => {
         </TableBody>
       </Table>
     </div>
+  );
+};
+
+// ViewEventDialog Component
+interface ViewEventDialogProps {
+  event: Event | null;
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+const ViewEventDialog: React.FC<ViewEventDialogProps> = ({ event, isOpen, onClose }) => {
+  if (!event) return null;
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Event Details: {event.name}</DialogTitle>
+        </DialogHeader>
+        <div className="py-4 space-y-2 max-h-[70vh] overflow-y-auto pr-2">
+          <p><strong>Client ID:</strong> {event.client_id}</p>
+          <p><strong>Event Type:</strong> {event.event_type}</p>
+          <p><strong>Date:</strong> {format(new Date(event.date), "PPP")}</p>
+          <p><strong>Start Time:</strong> {format(new Date(event.start_time), "p")}</p>
+          <p><strong>End Time:</strong> {format(new Date(event.end_time), "p")}</p>
+          <p><strong>Venue:</strong> {event.venue}</p>
+          <p><strong>Guests Count:</strong> {event.guests_count}</p>
+          <p><strong>Budget:</strong> ${event.budget.toLocaleString()}</p>
+          {event.notes && <p><strong>Notes:</strong> {event.notes}</p>}
+          <p><strong>Status:</strong> {event.status}</p>
+          <p><strong>Created At:</strong> {format(new Date(event.created_at), "Pp")}</p>
+          <p><strong>Updated At:</strong> {format(new Date(event.updated_at), "Pp")}</p>
+        </div>
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onClose}>
+            Close
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };
 
