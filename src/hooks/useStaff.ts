@@ -133,9 +133,8 @@ export function useStaff() {
     setLoading(true);
     
     try {
-      await apiRequest(API_ENDPOINTS.staff.updateStatus(id), {
+      await apiRequest(`${API_ENDPOINTS.staff.updateStatus(id)}?status=${status}`, {
         method: 'PUT',
-        body: JSON.stringify({ status }),
       });
       
       setStaff(prev => prev.map(member => 
