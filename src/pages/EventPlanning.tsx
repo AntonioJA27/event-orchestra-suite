@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -53,12 +53,14 @@ import {
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { useLocation } from 'react-router-dom';
 
 // Import custom hooks and components
 import { useEvents, Event, EventFormData } from '@/hooks/useEvents';
 import { DataTable } from '@/components/common/DataTable';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
+import { useConfig } from '@/hooks/useConfig';
 
 // Zod schema for form validation
 const eventFormSchema = z.object({
@@ -76,35 +78,9 @@ const eventFormSchema = z.object({
 
 type EventFormType = z.infer<typeof eventFormSchema>;
 
-// Mock client data - In real app, this would come from a clients API
-const MOCK_CLIENTS = [
-    { id: 1, name: "García-López" },
-    { id: 2, name: "TechCorp Solutions" },
-    { id: 3, name: "Universidad ABC" },
-    { id: 4, name: "Familia Martínez" },
-];
-
-const VENUES = [
-  "Salón Principal",
-  "Salón Ejecutivo", 
-  "Gran Salón",
-  "Terraza",
-  "Jardín Principal",
-  "Salón VIP"
-];
-
-const EVENT_TYPES = [
-  "Boda",
-  "Evento Corporativo",
-  "Graduación",
-  "Cumpleaños",
-  "Conferencia",
-  "Reunión Social",
-  "Celebración",
-];
-
 const EventPlanningPage: React.FC = () => {
-  const { events, loading, createEvent, updateEvent, deleteEvent } = useEvents();
+  const { events, loading: eventsLoading, createEvent, updateEvent, deleteEvent } = useEvents();
+  const { clients, venues, eventTypes, loading: configLoading } = useConfig();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [viewingEvent, setViewingEvent] = useState<Event | null>(null);
@@ -114,6 +90,7 @@ const EventPlanningPage: React.FC = () => {
   });
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const location = useLocation();
 
   const form = useForm<EventFormType>({
     resolver: zodResolver(eventFormSchema),
@@ -130,26 +107,44 @@ const EventPlanningPage: React.FC = () => {
     },
   });
 
+  const loading = eventsLoading || configLoading;
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('nuevo') === '1') {
+      setIsCreateDialogOpen(true);
+    }
+  }, [location.search]);
+
   const handleCreateEvent = async (values: EventFormType) => {
     try {
-      // Format date and combine with time for ISO 8601 strings
+      // Create datetime objects with the correct format
       const eventDate = values.date;
-      
       const [startHour, startMinute] = values.start_time.split(':').map(Number);
-      const startDate = new Date(eventDate);
-      startDate.setHours(startHour, startMinute, 0, 0);
-
       const [endHour, endMinute] = values.end_time.split(':').map(Number);
-      const endDate = new Date(eventDate);
-      endDate.setHours(endHour, endMinute, 0, 0);
 
-      const payload: EventFormData = {
-        ...values,
-        date: eventDate.toISOString().split('T')[0],
-        start_time: startDate.toISOString(),
-        end_time: endDate.toISOString(),
+      // Create the datetime objects with UTC timezone
+      const startDateTime = new Date(eventDate);
+      startDateTime.setHours(startHour, startMinute, 0, 0);
+      
+      const endDateTime = new Date(eventDate);
+      endDateTime.setHours(endHour, endMinute, 0, 0);
+
+      // Format dates in ISO 8601 with Z (UTC timezone)
+      const payload = {
+        name: values.name,
+        client_id: values.client_id,
+        event_type: values.event_type,
+        date: startDateTime.toISOString(), // Keep the Z for UTC timezone
+        start_time: startDateTime.toISOString(),
+        end_time: endDateTime.toISOString(),
+        venue: values.venue,
+        guests_count: values.guests_count,
+        budget: values.budget,
+        notes: values.notes || ""
       };
 
+      console.log('Sending payload to API:', payload);
       await createEvent(payload);
       setIsCreateDialogOpen(false);
       form.reset();
@@ -174,7 +169,7 @@ const EventPlanningPage: React.FC = () => {
 
       const payload = {
         ...values,
-        date: eventDate.toISOString().split('T')[0],
+        date: startDate.toISOString(), // Send date as the ISO string of the start datetime
         start_time: startDate.toISOString(),
         end_time: endDate.toISOString(),
       };
@@ -240,7 +235,7 @@ const EventPlanningPage: React.FC = () => {
   };
 
   const getClientName = (clientId: number) => {
-    const client = MOCK_CLIENTS.find(c => c.id === clientId);
+    const client = clients.find(c => c.id === clientId);
     return client ? client.name : `Cliente #${clientId}`;
   };
 
@@ -448,7 +443,7 @@ const EventPlanningPage: React.FC = () => {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {MOCK_CLIENTS.map(client => (
+                          {clients.map(client => (
                             <SelectItem key={client.id} value={client.id.toString()}>
                               {client.name}
                             </SelectItem>
@@ -475,9 +470,9 @@ const EventPlanningPage: React.FC = () => {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {EVENT_TYPES.map(type => (
-                            <SelectItem key={type} value={type}>
-                              {type}
+                          {eventTypes.map(type => (
+                            <SelectItem key={type.name} value={type.name}>
+                              {type.name}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -500,9 +495,9 @@ const EventPlanningPage: React.FC = () => {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {VENUES.map(venue => (
-                            <SelectItem key={venue} value={venue}>
-                              {venue}
+                          {venues.map(venue => (
+                            <SelectItem key={venue.name} value={venue.name}>
+                              {venue.name}
                             </SelectItem>
                           ))}
                         </SelectContent>
